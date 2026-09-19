@@ -42,7 +42,7 @@ No new dependencies.
 
 ## Definition of done
 - [ ] User can log in with valid email and password.
-- [ ] User is redirected to the landing after successful login.
+- [ ] User is redirected to the profile page (or landing) after successful login.
 - [ ] User sees an error message on the login page for invalid credentials.
 - [ ] User cannot access protected routes without logging in.
 - [ ] Navigation in `base.html` updates correctly (Login $\rightarrow$ Logout/Profile) after login.
