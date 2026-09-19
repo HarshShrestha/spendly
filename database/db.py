@@ -15,6 +15,18 @@ def get_db():
     return conn
 
 
+def get_user_by_email(email):
+    """
+    Retrieves a user from the database by their email address.
+    Returns the user row or None if not found.
+    """
+    with get_db() as conn:
+        return conn.execute(
+            "SELECT * FROM users WHERE email = ?",
+            (email,)
+        ).fetchone()
+
+
 def create_user(name, email, password_hash):
     """
     Creates a new user in the database.
