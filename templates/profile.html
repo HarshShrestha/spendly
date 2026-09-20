@@ -22,6 +22,39 @@
         </div>
     </header>
 
+    <!-- Date Filter Bar -->
+    <div class="filter-bar">
+        <div class="filter-presets">
+            <a href="{{ url_for('profile') }}"
+               class="filter-btn {{ 'active' if not date_from }}"
+               title="Show all time">All Time</a>
+
+            <a href="{{ url_for('profile', date_from=presets.this_month[0], date_to=presets.this_month[1]) }}"
+               class="filter-btn {{ 'active' if date_from == presets.this_month[0] }}"
+               title="This Month">This Month</a>
+
+            <a href="{{ url_for('profile', date_from=presets.last_3m[0], date_to=presets.last_3m[1]) }}"
+               class="filter-btn {{ 'active' if date_from == presets.last_3m[0] }}"
+               title="Last 3 Months">3 Months</a>
+
+            <a href="{{ url_for('profile', date_from=presets.last_6m[0], date_to=presets.last_6m[1]) }}"
+               class="filter-btn {{ 'active' if date_from == presets.last_6m[0] }}"
+               title="Last 6 Months">6 Months</a>
+        </div>
+
+        <form class="filter-custom" method="GET" action="{{ url_for('profile') }}">
+            <div class="input-group">
+                <label for="date_from">From</label>
+                <input type="date" id="date_from" name="date_from" value="{{ date_from or '' }}">
+            </div>
+            <div class="input-group">
+                <label for="date_to">To</label>
+                <input type="date" id="date_to" name="date_to" value="{{ date_to or '' }}">
+            </div>
+            <button type="submit" class="filter-apply-btn">Apply</button>
+        </form>
+    </div>
+
     <!-- Summary Stats -->
     <section class="stats-grid">
         <div class="stat-card">

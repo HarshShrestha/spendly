@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from database.db import init_db, seed_db, create_user, get_user_by_email, get_user_profile, get_user_stats, get_recent_transactions, get_category_breakdown
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = "dev-secret-key-for-spendly"
@@ -91,6 +92,37 @@ def logout():
     return redirect(url_for("landing"))
 
 
+def _get_date_filter_params():
+    """Helper to validate date filters and calculate presets."""
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+
+    validated_from = None
+    validated_to = None
+
+    if date_from and date_to:
+        try:
+            datetime.strptime(date_from, "%Y-%m-%d")
+            datetime.strptime(date_to, "%Y-%m-%d")
+
+            if date_from > date_to:
+                flash("Start date must be before end date.")
+            else:
+                validated_from = date_from
+                validated_to = date_to
+        except ValueError:
+            flash("Invalid date format. Please use YYYY-MM-DD.")
+
+    today = datetime.now().date()
+    presets = {
+        "this_month": (today.replace(day=1).strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")),
+        "last_3m": ((today - timedelta(days=90)).strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")),
+        "last_6m": ((today - timedelta(days=180)).strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")),
+    }
+
+    return validated_from, validated_to, presets
+
+
 @app.route("/profile")
 def profile():
     if not session.get("user_id"):
@@ -102,16 +134,21 @@ def profile():
     if not user:
         return redirect(url_for("login")) # User no longer exists
 
-    stats = get_user_stats(user_id)
-    transactions = get_recent_transactions(user_id)
-    categories = get_category_breakdown(user_id)
+    validated_from, validated_to, presets = _get_date_filter_params()
+
+    stats = get_user_stats(user_id, validated_from, validated_to)
+    transactions = get_recent_transactions(user_id, date_from=validated_from, date_to=validated_to)
+    categories = get_category_breakdown(user_id, validated_from, validated_to)
 
     return render_template(
         "profile.html",
         user=user,
         stats=stats,
         transactions=transactions,
-        categories=categories
+        categories=categories,
+        date_from=validated_from,
+        date_to=validated_to,
+        presets=presets
     )
 
 

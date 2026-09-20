@@ -63,25 +63,37 @@ def get_user_profile(user_id):
         return None
 
 
-def get_user_stats(user_id):
+def _apply_date_filter(query, params, date_from, date_to):
+    """Internal helper to append date range filter to a query."""
+    if date_from and date_to:
+        query += " AND date BETWEEN ? AND ?"
+        params.extend([date_from, date_to])
+    return query, params
+
+
+def get_user_stats(user_id: int, date_from: str = None, date_to: str = None):
     """
-    Calculates spending statistics for the user.
+    Calculates spending statistics for the user, optionally filtered by date range.
     """
     with get_db() as conn:
         # Total spent and count
-        stats_row = conn.execute(
-            "SELECT SUM(amount) as total, COUNT(id) as count FROM expenses WHERE user_id = ?",
-            (user_id,)
-        ).fetchone()
+        query = "SELECT SUM(amount) as total, COUNT(id) as count FROM expenses WHERE user_id = ?"
+        params = [user_id]
+
+        query, params = _apply_date_filter(query, params, date_from, date_to)
+        stats_row = conn.execute(query, params).fetchone()
 
         total_spent = stats_row['total'] or 0.0
         count = stats_row['count'] or 0
 
         # Top category
-        top_cat_row = conn.execute(
-            "SELECT category FROM expenses WHERE user_id = ? GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
-            (user_id,)
-        ).fetchone()
+        cat_query = "SELECT category FROM expenses WHERE user_id = ?"
+        cat_params = [user_id]
+
+        cat_query, cat_params = _apply_date_filter(cat_query, cat_params, date_from, date_to)
+        cat_query += " GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1"
+
+        top_cat_row = conn.execute(cat_query, cat_params).fetchone()
 
         return {
             "total_spent": f"₹{total_spent:,.2f}",
@@ -90,15 +102,19 @@ def get_user_stats(user_id):
         }
 
 
-def get_recent_transactions(user_id, limit=5):
+def get_recent_transactions(user_id, limit=5, date_from=None, date_to=None):
     """
-    Retrieves most recent transactions.
+    Retrieves most recent transactions, optionally filtered by date range.
     """
     with get_db() as conn:
-        rows = conn.execute(
-            "SELECT date, description, category, amount FROM expenses WHERE user_id = ? ORDER BY date DESC LIMIT ?",
-            (user_id, limit)
-        ).fetchall()
+        query = "SELECT date, description, category, amount FROM expenses WHERE user_id = ?"
+        params = [user_id]
+
+        query, params = _apply_date_filter(query, params, date_from, date_to)
+        query += " ORDER BY date DESC LIMIT ?"
+        params.append(limit)
+
+        rows = conn.execute(query, params).fetchall()
 
         return [
             {
@@ -111,21 +127,26 @@ def get_recent_transactions(user_id, limit=5):
         ]
 
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id: int, date_from: str = None, date_to: str = None):
     """
-    Retrieves spending breakdown by category.
+    Retrieves spending breakdown by category, optionally filtered by date range.
     """
     with get_db() as conn:
         # Get total first for percentage
-        total_spent = conn.execute(
-            "SELECT SUM(amount) as total FROM expenses WHERE user_id = ?",
-            (user_id,)
-        ).fetchone()['total'] or 0.0
+        total_query = "SELECT SUM(amount) as total FROM expenses WHERE user_id = ?"
+        total_params = [user_id]
 
-        rows = conn.execute(
-            "SELECT category, SUM(amount) as total FROM expenses WHERE user_id = ? GROUP BY category ORDER BY total DESC",
-            (user_id,)
-        ).fetchall()
+        total_query, total_params = _apply_date_filter(total_query, total_params, date_from, date_to)
+        total_spent = conn.execute(total_query, total_params).fetchone()['total'] or 0.0
+
+        # Get breakdown
+        break_query = "SELECT category, SUM(amount) as total FROM expenses WHERE user_id = ?"
+        break_params = [user_id]
+
+        break_query, break_params = _apply_date_filter(break_query, break_params, date_from, date_to)
+        break_query += " GROUP BY category ORDER BY total DESC"
+
+        rows = conn.execute(break_query, break_params).fetchall()
 
         breakdown = []
         for row in rows:
