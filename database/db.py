@@ -41,7 +41,106 @@ def create_user(name, email, password_hash):
         return cur.lastrowid
 
 
+def get_user_profile(user_id):
+    """
+    Retrieves user profile information.
+    """
+    with get_db() as conn:
+        user = conn.execute(
+            "SELECT name, email, created_at FROM users WHERE id = ?",
+            (user_id,)
+        ).fetchone()
+        if user:
+            # Simple formatting for join date (e.g., '2024-01-15 10:00:00' -> 'January 2024')
+            # created_at is stored as a string in ISO format
+            import datetime
+            dt = datetime.datetime.strptime(user['created_at'], '%Y-%m-%d %H:%M:%S')
+            return {
+                "name": user['name'],
+                "email": user['email'],
+                "join_date": dt.strftime('%B %Y')
+            }
+        return None
+
+
+def get_user_stats(user_id):
+    """
+    Calculates spending statistics for the user.
+    """
+    with get_db() as conn:
+        # Total spent and count
+        stats_row = conn.execute(
+            "SELECT SUM(amount) as total, COUNT(id) as count FROM expenses WHERE user_id = ?",
+            (user_id,)
+        ).fetchone()
+
+        total_spent = stats_row['total'] or 0.0
+        count = stats_row['count'] or 0
+
+        # Top category
+        top_cat_row = conn.execute(
+            "SELECT category FROM expenses WHERE user_id = ? GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
+            (user_id,)
+        ).fetchone()
+
+        return {
+            "total_spent": f"₹{total_spent:,.2f}",
+            "transaction_count": count,
+            "top_category": top_cat_row['category'] if top_cat_row else "None"
+        }
+
+
+def get_recent_transactions(user_id, limit=5):
+    """
+    Retrieves most recent transactions.
+    """
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT date, description, category, amount FROM expenses WHERE user_id = ? ORDER BY date DESC LIMIT ?",
+            (user_id, limit)
+        ).fetchall()
+
+        return [
+            {
+                "date": row['date'],
+                "description": row['description'],
+                "category": row['category'],
+                "amount": f"₹{row['amount']:,.2f}"
+            }
+            for row in rows
+        ]
+
+
+def get_category_breakdown(user_id):
+    """
+    Retrieves spending breakdown by category.
+    """
+    with get_db() as conn:
+        # Get total first for percentage
+        total_spent = conn.execute(
+            "SELECT SUM(amount) as total FROM expenses WHERE user_id = ?",
+            (user_id,)
+        ).fetchone()['total'] or 0.0
+
+        rows = conn.execute(
+            "SELECT category, SUM(amount) as total FROM expenses WHERE user_id = ? GROUP BY category ORDER BY total DESC",
+            (user_id,)
+        ).fetchall()
+
+        breakdown = []
+        for row in rows:
+            amt = row['total']
+            perc = (amt / total_spent * 100) if total_spent > 0 else 0
+            breakdown.append({
+                "category": row['category'],
+                "amount": f"₹{amt:,.2f}",
+                "percentage": round(perc)
+            })
+        return breakdown
+
+
 def init_db():
+
     """
     Initializes the database by creating the users and expenses tables.
     """
