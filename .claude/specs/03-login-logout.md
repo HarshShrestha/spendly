@@ -1,4 +1,3 @@
----
 # Spec: Login and Logout
 
 ## Overview
@@ -47,4 +46,3 @@ No new dependencies.
 - [ ] User cannot access protected routes without logging in.
 - [ ] Navigation in `base.html` updates correctly (Login $\rightarrow$ Logout/Profile) after login.
 - [ ] User is successfully logged out via `/logout` and redirected to landing.
----
