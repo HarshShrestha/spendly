@@ -107,7 +107,7 @@ def get_recent_transactions(user_id, limit=5, date_from=None, date_to=None):
     Retrieves most recent transactions, optionally filtered by date range.
     """
     with get_db() as conn:
-        query = "SELECT date, description, category, amount FROM expenses WHERE user_id = ?"
+        query = "SELECT id, date, description, category, amount FROM expenses WHERE user_id = ?"
         params = [user_id]
 
         query, params = _apply_date_filter(query, params, date_from, date_to)
@@ -118,6 +118,7 @@ def get_recent_transactions(user_id, limit=5, date_from=None, date_to=None):
 
         return [
             {
+                "id": row['id'],
                 "date": row['date'],
                 "description": row['description'],
                 "category": row['category'],
@@ -203,6 +204,20 @@ def add_expense(user_id: int, amount: float, category: str, date: str, descripti
         )
         conn.commit()
         return cur.lastrowid
+
+
+def delete_expense(expense_id: int, user_id: int) -> bool:
+    """
+    Deletes an expense record if it belongs to the specified user.
+    Returns True if deletion was successful, False otherwise.
+    """
+    with get_db() as conn:
+        cur = conn.execute(
+            "DELETE FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id)
+        )
+        conn.commit()
+        return cur.rowcount > 0
 
 
 def seed_db():
