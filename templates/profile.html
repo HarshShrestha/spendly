@@ -76,7 +76,10 @@
 
         <!-- Transaction History -->
         <section class="content-section">
-            <h2 class="section-title"><i data-lucide="history"></i> Recent Transactions</h2>
+            <div class="section-header">
+                <h2 class="section-title"><i data-lucide="history"></i> Recent Transactions</h2>
+                <a href="{{ url_for('add_expense') }}" class="btn-primary btn-sm">Add Expense</a>
+            </div>
             <div style="overflow-x: auto;">
                 <table class="tx-table">
                     <thead>

@@ -111,7 +111,7 @@ def get_recent_transactions(user_id, limit=5, date_from=None, date_to=None):
         params = [user_id]
 
         query, params = _apply_date_filter(query, params, date_from, date_to)
-        query += " ORDER BY date DESC LIMIT ?"
+        query += " ORDER BY date DESC, id DESC LIMIT ?"
         params.append(limit)
 
         rows = conn.execute(query, params).fetchall()
@@ -190,6 +190,20 @@ def init_db():
             );
         """)
         conn.commit()
+
+def add_expense(user_id: int, amount: float, category: str, date: str, description: str = None):
+    """
+    Inserts a new expense record for the given user.
+    Returns the ID of the newly created expense.
+    """
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
+            (user_id, amount, category, date, description)
+        )
+        conn.commit()
+        return cur.lastrowid
+
 
 def seed_db():
     """
