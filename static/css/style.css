@@ -278,6 +278,11 @@ a { color: inherit; text-decoration: none; }
 
 .btn-primary:hover { background: var(--accent); }
 
+.btn-primary.btn-sm {
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+}
+
 .btn-ghost {
     display: inline-block;
     background: transparent;
