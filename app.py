@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from database.db import init_db, seed_db, create_user, get_user_by_email, get_user_profile, get_user_stats, get_recent_transactions, get_category_breakdown, add_expense
+from database.db import init_db, seed_db, create_user, get_user_by_email, get_user_profile, get_user_stats, get_recent_transactions, get_category_breakdown, add_expense, delete_expense
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 from datetime import datetime, timedelta
@@ -235,9 +235,19 @@ def edit_expense(id):
     return "Edit expense — coming in Step 8"
 
 
-@app.route("/expenses/<int:id>/delete")
-def delete_expense(id):
-    return "Delete expense — coming in Step 9"
+@app.route("/expenses/<int:id>/delete", methods=["POST"])
+def handle_delete_expense(id):
+    if not session.get("user_id"):
+        return redirect(url_for("login", next=request.path))
+
+    user_id = session["user_id"]
+
+    if delete_expense(id, user_id):
+        flash("Expense deleted successfully", "success")
+    else:
+        flash("Expense not found or you do not have permission to delete it", "error")
+
+    return redirect(url_for("profile"))
 
 
 if __name__ == "__main__":
