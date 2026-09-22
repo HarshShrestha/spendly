@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from database.db import init_db, seed_db, create_user, get_user_by_email, get_user_profile, get_user_stats, get_recent_transactions, get_category_breakdown, add_expense, delete_expense
+from database.db import init_db, seed_db, create_user, get_user_by_email, get_user_profile, get_user_stats, get_recent_transactions, get_category_breakdown, add_expense, delete_expense, get_expense_by_id, update_expense
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 from datetime import datetime, timedelta
@@ -230,9 +230,80 @@ def add_expense():
     return render_template("add_expense.html", categories=EXPENSE_CATEGORIES, default_date=today)
 
 
-@app.route("/expenses/<int:id>/edit")
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    if not session.get("user_id"):
+        return redirect(url_for("login", next=request.path))
+
+    user_id = session["user_id"]
+
+    # Fetch expense to verify existence and ownership
+    expense = get_expense_by_id(id, user_id)
+    if not expense:
+        from flask import abort
+        abort(404)
+
+    if request.method == "POST":
+        # Get and strip form data
+        amount_str = request.form.get("amount", "").strip()
+        category = request.form.get("category", "").strip()
+        date_str = request.form.get("date", "").strip()
+        description = request.form.get("description", "").strip() or None
+
+        # Validation
+        error = None
+        form_data = {
+            "amount": amount_str,
+            "category": category,
+            "date": date_str,
+            "description": description or ""
+        }
+
+        # Validate amount
+        if not amount_str:
+            error = "Amount is required"
+        else:
+            try:
+                amount = float(amount_str)
+                if amount <= 0:
+                    error = "Amount must be a positive number"
+            except ValueError:
+                error = "Amount must be a numeric value"
+
+        # Validate category
+        if not error and category not in EXPENSE_CATEGORIES:
+            error = "Invalid category selected"
+
+        # Validate date
+        if not error:
+            if not date_str:
+                error = "Date is required"
+            else:
+                try:
+                    datetime.strptime(date_str, "%Y-%m-%d")
+                except ValueError:
+                    error = "Invalid date format. Please use YYYY-MM-DD."
+
+        # Validate description length
+        if not error and description and len(description) > 200:
+            error = "Description must be 200 characters or less"
+
+        if error:
+            return render_template("edit_expense.html", error=error, form_data=form_data, expense=expense, categories=EXPENSE_CATEGORIES, expense_id=id)
+
+        # All valid - update expense
+        try:
+            if update_expense(id, user_id, amount, category, date_str, description):
+                flash("Expense updated successfully", "success")
+                return redirect(url_for("profile"))
+            else:
+                return render_template("edit_expense.html", error="Failed to update expense. It may have been deleted.", form_data=form_data, expense=expense, categories=EXPENSE_CATEGORIES, expense_id=id)
+        except sqlite3.Error:
+            return render_template("edit_expense.html", error="A database error occurred. Please try again.", form_data=form_data, expense=expense, categories=EXPENSE_CATEGORIES, expense_id=id)
+
+    # GET request - render form with existing data
+    return render_template("edit_expense.html", expense=expense, categories=EXPENSE_CATEGORIES, expense_id=id)
+
 
 
 @app.route("/expenses/<int:id>/delete", methods=["POST"])
