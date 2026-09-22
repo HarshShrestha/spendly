@@ -206,7 +206,34 @@ def add_expense(user_id: int, amount: float, category: str, date: str, descripti
         return cur.lastrowid
 
 
+def get_expense_by_id(expense_id: int, user_id: int):
+    """
+    Retrieves a specific expense for a user.
+    Returns the row if found and owned by the user, otherwise None.
+    """
+    with get_db() as conn:
+        return conn.execute(
+            "SELECT * FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id)
+        ).fetchone()
+
+
+def update_expense(expense_id: int, user_id: int, amount: float, category: str, date: str, description: str = None) -> bool:
+    """
+    Updates an existing expense record if it belongs to the specified user.
+    Returns True if the update was successful, False otherwise.
+    """
+    with get_db() as conn:
+        cur = conn.execute(
+            "UPDATE expenses SET amount = ?, category = ?, date = ?, description = ? WHERE id = ? AND user_id = ?",
+            (amount, category, date, description, expense_id, user_id)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+
+
 def delete_expense(expense_id: int, user_id: int) -> bool:
+
     """
     Deletes an expense record if it belongs to the specified user.
     Returns True if deletion was successful, False otherwise.
